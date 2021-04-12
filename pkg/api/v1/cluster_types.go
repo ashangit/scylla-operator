@@ -63,6 +63,9 @@ type ClusterSpec struct {
 	// Backups specifies backup task in Scylla Manager.
 	// When Scylla Manager is not installed, these will be ignored.
 	Backups []BackupTaskSpec `json:"backups,omitempty"`
+	// MultiDcCluster configuration for multi DC cluster
+	// Specifies the external seed to use
+	MultiDcCluster *MultiDcClusterSpec `json:"multiDcCluster,omitempty"`
 }
 
 // GenericUpgradeFailureStrategy allows to specify how upgrade logic should handle failures.
@@ -124,6 +127,10 @@ type RepairTaskSpec struct {
 	SmallTableThreshold *string `json:"smallTableThreshold,omitempty" mapstructure:"small_table_threshold,omitempty"`
 	// Host to repair, by default all hosts are repaired
 	Host *string `json:"host,omitempty" mapstructure:"host,omitempty"`
+}
+
+type MultiDcClusterSpec struct {
+	Seeds  []string `json:"seeds,omitempty" mapstructure:"seeds,omitempty"`
 }
 
 type BackupTaskSpec struct {

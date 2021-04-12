@@ -93,6 +93,28 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster, svc *
 	return service, nil
 }
 
+func ServiceForExternalSeed(externalServiceName, seed string, cluster *scyllav1.ScyllaCluster) (*corev1.Service, error) {
+	labels := naming.ClusterLabels(cluster)
+	labels[naming.SeedLabel] = ""
+	labels[naming.IpLabel] = seed
+	labels[naming.ExternalSeedLabel] = naming.LabelValueTrue
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            externalServiceName,
+			Namespace:       cluster.Namespace,
+			OwnerReferences: []metav1.OwnerReference{util.NewControllerRef(cluster)},
+			Labels:          labels,
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: corev1.ClusterIPNone,
+			Type:      corev1.ServiceTypeClusterIP,
+			Ports:     memberServicePorts(cluster),
+		},
+	}
+
+	return service, nil
+}
+
 func memberServicePorts(cluster *scyllav1.ScyllaCluster) []corev1.ServicePort {
 	ports := []corev1.ServicePort{
 		{

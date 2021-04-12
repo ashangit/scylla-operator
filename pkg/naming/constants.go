@@ -39,6 +39,7 @@ const (
 	ClusterNameLabel    = "scylla/cluster"
 	DatacenterNameLabel = "scylla/datacenter"
 	RackNameLabel       = "scylla/rack"
+	ExternalSeedLabel   = "scylla/external-seed"
 
 	AppName         = "scylla"
 	OperatorAppName = "scylla-operator"

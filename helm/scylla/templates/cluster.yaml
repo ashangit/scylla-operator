@@ -16,6 +16,13 @@ spec:
   {{- end }}
   developerMode: {{ .Values.developerMode }}
   cpuset: {{ .Values.cpuset }}
+  {{- if .Values.multiDcCluster.enable }}
+  multiDcCluster:
+    {{- with .Values.multiDcCluster.seeds }}
+    seeds:
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
   automaticOrphanedNodeCleanup: {{ .Values.automaticOrphanedNodeCleanup }}
   {{- with .Values.sysctls }}
   sysctls:

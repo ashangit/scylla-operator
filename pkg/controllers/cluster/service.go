@@ -2,13 +2,13 @@ package cluster
 
 import (
 	"context"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
+	"fmt"
 	"github.com/pkg/errors"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/v1"
 	"github.com/scylladb/scylla-operator/pkg/controllers/cluster/resource"
 	"github.com/scylladb/scylla-operator/pkg/naming"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -71,6 +71,42 @@ func (cc *ClusterReconciler) syncMemberServices(ctx context.Context, c *scyllav1
 // syncService checks if the given Service exists and creates it if it doesn't
 // it creates it
 func serviceMutateFn(ctx context.Context, newService *corev1.Service, client client.Client) func() error {
+	return func() error {
+		// TODO: probably nothing has to be done, check v1 implementation of CreateOrUpdate
+		//existingService := existing.(*corev1.Service)
+		//if !reflect.DeepEqual(newService.Spec, existingService.Spec) {
+		//	return client.Update(ctx, existing)
+		//}
+		return nil
+	}
+}
+
+func (cc *ClusterReconciler) syncMultiDcServices(ctx context.Context, cluster *scyllav1.ScyllaCluster) error {
+	for id, seed := range cluster.Spec.MultiDcCluster.Seeds {
+		externalServiceName := fmt.Sprintf("%s-%s-external-seed-%d", cluster.Name, cluster.Spec.Datacenter.Name, id)
+
+		cc.Logger.Info(ctx, "Create external seed ", externalServiceName)
+		externalService, err := resource.ServiceForExternalSeed(externalServiceName, seed, cluster)
+		if err != nil {
+			return errors.Wrapf(err, "error syncing external seed service %s for seed %s", externalServiceName, seed)
+		}
+		op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, externalService, serviceMutateFn(ctx, externalService, cc.Client))
+		if err != nil {
+			return errors.Wrapf(err, "error syncing service %s", externalService.Name)
+		}
+		switch op {
+		case controllerutil.OperationResultCreated:
+			cc.Logger.Info(ctx, "External seed service created", "externalSeed", externalService.Name, "labels", externalService.Labels)
+		case controllerutil.OperationResultUpdated:
+			cc.Logger.Info(ctx, "External seed service updated", "externalSeed", externalService.Name, "labels", externalService.Labels)
+		}
+	}
+	return nil
+}
+
+// syncService checks if the given Service exists and creates it if it doesn't
+// it creates it
+func endpointMutateFn(ctx context.Context, endpoint *corev1.Endpoints, client client.Client) func() error {
 	return func() error {
 		// TODO: probably nothing has to be done, check v1 implementation of CreateOrUpdate
 		//existingService := existing.(*corev1.Service)

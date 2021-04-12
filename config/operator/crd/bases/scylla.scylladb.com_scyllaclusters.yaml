@@ -1438,6 +1438,15 @@ spec:
                   description: PollInterval specifies how often upgrade logic polls on state updates. Increasing this value should lower number of requests sent to apiserver, but it may affect overall time spent during upgrade.
                   type: string
               type: object
+            multiDcCluster:
+              description: Configuration for multi DC cluster
+              properties:
+                seeds:
+                  description: List of distant seeds.
+                  items:
+                    type: string
+                  type: array
+              type: object
             network:
               description: Networking config
               properties:
