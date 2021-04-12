@@ -110,6 +110,20 @@ spec:
             cpuset:
               description: CpuSet determines if the cluster will use cpu-pinning for max performance.
               type: boolean
+            crossDcClusters:
+              description: External cluster that will be part of this Multi Dc cluster
+              items:
+                properties:
+                  name:
+                    description: External DC namee.
+                    type: string
+                  seeds:
+                    description: List of distant seeds ips.
+                    items:
+                      type: string
+                    type: array
+                type: object
+              type: array
             datacenter:
               description: Datacenter that will make up this cluster.
               properties:
