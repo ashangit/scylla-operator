@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/pkg/errors"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/v1"
@@ -43,7 +44,15 @@ func (cc *ClusterReconciler) syncMemberServices(ctx context.Context, c *scyllav1
 			return errors.Wrapf(err, "listing pods for rack %s failed", r.Name)
 		}
 		for _, pod := range podlist.Items {
-			memberService := resource.MemberServiceForPod(&pod, c)
+			oldMemberService := &corev1.Service{}
+			err := cc.Get(ctx, naming.NamespacedNameForObject(pod.GetObjectMeta()), oldMemberService)
+			if err != nil && !apierrors.IsNotFound(err) {
+				return errors.Wrapf(err, "Get old member service for pod %s failed", pod.Name)
+			}
+			memberService, err := resource.MemberServiceForPod(&pod, c, oldMemberService)
+			if err != nil {
+				return errors.Wrapf(err, "error syncing member service for pod %s failed", pod.Name)
+			}
 			op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, memberService, serviceMutateFn(ctx, memberService, cc.Client))
 			if err != nil {
 				return errors.Wrapf(err, "error syncing member service %s", memberService.Name)

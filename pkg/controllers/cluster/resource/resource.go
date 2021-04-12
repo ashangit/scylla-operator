@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"path"
 	"strconv"
 	"strings"
@@ -48,7 +49,7 @@ func HeadlessServiceForCluster(c *scyllav1.ScyllaCluster) *corev1.Service {
 	}
 }
 
-func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *corev1.Service {
+func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster, svc *corev1.Service) (*corev1.Service, error) {
 	labels := naming.ClusterLabels(cluster)
 	labels[naming.DatacenterNameLabel] = pod.Labels[naming.DatacenterNameLabel]
 	labels[naming.RackNameLabel] = pod.Labels[naming.RackNameLabel]
@@ -60,7 +61,17 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *core
 	if replaceAddr, ok := cluster.Status.Racks[rackName].ReplaceAddressFirstBoot[pod.Name]; ok && replaceAddr != "" {
 		labels[naming.ReplaceLabel] = replaceAddr
 	}
-	return &corev1.Service{
+
+	// No IP can be  found if in pending state and pod should not be replaced
+	if (svc.ObjectMeta.Labels[naming.IpLabel] == "") && pod.Status.Phase == corev1.PodPending {
+		return nil, fmt.Errorf("pod in pending state and service not initialized")
+	}
+
+	if pod.Status.PodIP != "" {
+		labels[naming.IpLabel] = pod.Status.PodIP
+	}
+
+	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            pod.Name,
 			Namespace:       pod.Namespace,
@@ -74,6 +85,12 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *core
 			PublishNotReadyAddresses: true,
 		},
 	}
+
+	if cluster.Spec.Network.HostNetworking {
+		service.Spec.ClusterIP = corev1.ClusterIPNone
+	}
+
+	return service, nil
 }
 
 func memberServicePorts(cluster *scyllav1.ScyllaCluster) []corev1.ServicePort {
@@ -509,4 +526,16 @@ func stringOrDefault(str, def string) string {
 		return str
 	}
 	return def
+}
+
+func GetIpFromService(svc *corev1.Service, hostNetworking bool) (string, error) {
+	ip := svc.Spec.ClusterIP
+	if hostNetworking {
+		var ok bool
+		ip, ok = svc.ObjectMeta.Labels[naming.IpLabel]
+		if !ok {
+			return "", errors.Errorf("%s label not found on member service %s", naming.IpLabel, svc.Name)
+		}
+	}
+	return ip, nil
 }

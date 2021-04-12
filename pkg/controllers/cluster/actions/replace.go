@@ -5,6 +5,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"github.com/scylladb/scylla-operator/pkg/controllers/cluster/resource"
 	"time"
 
 	"github.com/pkg/errors"
@@ -136,8 +137,12 @@ func (a *RackReplaceNode) replaceNode(ctx context.Context, state *State, member 
 
 	// Save replace address in RackStatus
 	rackStatus := c.Status.Racks[r.Name]
-	rackStatus.ReplaceAddressFirstBoot[member.Name] = member.Spec.ClusterIP
-	a.Logger.Debug(ctx, "Adding member address to replace address list", "member", member.Name, "ip", member.Spec.ClusterIP, "replace_addresses", rackStatus.ReplaceAddressFirstBoot)
+	memberIp, err := resource.GetIpFromService(member, c.Spec.Network.HostNetworking)
+	if err != nil {
+		return errors.Wrap(err, "failed to get IP from member service")
+	}
+	rackStatus.ReplaceAddressFirstBoot[member.Name] = memberIp
+	a.Logger.Debug(ctx, "Adding member address to replace address list", "member", member.Name, "ip", memberIp, "replace_addresses", rackStatus.ReplaceAddressFirstBoot)
 
 	// Proceed to destructive operations only when IP address is saved in cluster Status.
 	if err := cc.Status().Update(ctx, c); err != nil {
