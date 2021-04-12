@@ -49,6 +49,7 @@ func HeadlessServiceForCluster(c *scyllav1.ScyllaCluster) *corev1.Service {
 }
 
 func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *corev1.Service {
+	// TODO use NodePort if hostNetwork?
 	labels := naming.ClusterLabels(cluster)
 	labels[naming.DatacenterNameLabel] = pod.Labels[naming.DatacenterNameLabel]
 	labels[naming.RackNameLabel] = pod.Labels[naming.RackNameLabel]
@@ -60,7 +61,8 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *core
 	if replaceAddr, ok := cluster.Status.Racks[rackName].ReplaceAddressFirstBoot[pod.Name]; ok && replaceAddr != "" {
 		labels[naming.ReplaceLabel] = replaceAddr
 	}
-	return &corev1.Service{
+
+	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            pod.Name,
 			Namespace:       pod.Namespace,
@@ -74,6 +76,12 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *core
 			PublishNotReadyAddresses: true,
 		},
 	}
+
+	if cluster.Spec.Network.HostNetworking {
+		service.Spec.ClusterIP = corev1.ClusterIPNone
+	}
+
+	return service
 }
 
 func memberServicePorts(cluster *scyllav1.ScyllaCluster) []corev1.ServicePort {

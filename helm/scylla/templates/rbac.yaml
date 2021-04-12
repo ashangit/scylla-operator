@@ -23,6 +23,15 @@ rules:
       - patch
       - watch
   - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - list
+      - patch
+      - watch
+  - apiGroups:
       - "apps"
     resources:
       - statefulsets
