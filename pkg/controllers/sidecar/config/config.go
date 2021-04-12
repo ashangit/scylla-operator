@@ -188,17 +188,10 @@ func appendScyllaArguments(ctx context.Context, s *ScyllaConfig, scyllaArgs stri
 }
 
 func (s *ScyllaConfig) setupEntrypoint(ctx context.Context) (*exec.Cmd, error) {
-	m := s.member
-	// Get seeds
-	seeds, err := m.GetSeeds(ctx, s.kubeClient)
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting seeds")
-	}
-
 	// Check if we need to run in developer mode
 	devMode := "0"
 	cluster := &v1.ScyllaCluster{}
-	err = s.Get(ctx, naming.NamespacedName(s.member.Cluster, s.member.Namespace), cluster)
+	err := s.Get(ctx, naming.NamespacedName(s.member.Cluster, s.member.Namespace), cluster)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting cluster")
 	}
@@ -210,6 +203,13 @@ func (s *ScyllaConfig) setupEntrypoint(ctx context.Context) (*exec.Cmd, error) {
 		return nil, errors.WithStack(err)
 	}
 
+	m := s.member
+	// Get seeds
+	seeds, err := m.GetSeeds(ctx, s.kubeClient, s.Client, cluster.Spec.Network.HostNetworking)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting seeds")
+	}
+
 	args := map[string]*string{
 		"listen-address":        &m.IP,
 		"broadcast-address":     &m.StaticIP,
@@ -219,9 +219,11 @@ func (s *ScyllaConfig) setupEntrypoint(ctx context.Context) (*exec.Cmd, error) {
 		"overprovisioned":       pointer.StringPtr("0"),
 		"smp":                   pointer.StringPtr(strconv.Itoa(shards)),
 	}
-	if cluster.Spec.Network.HostNetworking {
-		args["broadcast-rpc-address"] = &m.IP
-	}
+	//if cluster.Spec.Network.HostNetworking {
+	//	s.logger.Info(ctx, "Spec.Network.HostNetworking")
+	//	args["broadcast-address"] = &m.IP
+	//	args["broadcast-rpc-address"] = &m.IP
+	//}
 	if cluster.Spec.Alternator.Enabled() {
 		args["alternator-port"] = pointer.StringPtr(strconv.Itoa(int(cluster.Spec.Alternator.Port)))
 		if cluster.Spec.Alternator.WriteIsolation != "" {

@@ -1,11 +1,14 @@
 package resource
 
 import (
+	"context"
 	"fmt"
 	"path"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/v1"
 	"github.com/scylladb/scylla-operator/pkg/cmd/scylla-operator/options"
 	"github.com/scylladb/scylla-operator/pkg/controllers/cluster/util"
@@ -517,4 +520,16 @@ func stringOrDefault(str, def string) string {
 		return str
 	}
 	return def
+}
+
+func GetIpFromService(ctx context.Context, cc client.Client, svc *corev1.Service, hostNetworking bool) (string, error) {
+	ip := svc.Spec.ClusterIP
+	if hostNetworking {
+		endpoint  := &corev1.Endpoints{}
+		if err := cc.Get(ctx, naming.NamespacedName(svc.Name, svc.Namespace), endpoint); err != nil {
+			return "", errors.New(fmt.Sprintf("failed to get seeds, error: %+v", err))
+		}
+		ip = endpoint.Subsets[0].Addresses[0].IP
+	}
+	return ip, nil
 }
