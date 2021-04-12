@@ -71,3 +71,10 @@ func serviceMutateFn(ctx context.Context, newService *corev1.Service, client cli
 		return nil
 	}
 }
+
+func (cc *ClusterReconciler) syncExternalCluster(ctx context.Context, c *scyllav1.ScyllaCluster) error {
+	for _, r := range c.Spec.CrossDcClusters {
+		cc.Logger.Info(ctx, "tt", r)
+	}
+	return nil
+}

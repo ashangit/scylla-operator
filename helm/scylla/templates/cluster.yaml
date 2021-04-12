@@ -16,6 +16,10 @@ spec:
   {{- end }}
   developerMode: {{ .Values.developerMode }}
   cpuset: {{ .Values.cpuset }}
+  {{- with .Values.crossDcClusters }}
+  crossDcClusters:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   automaticOrphanedNodeCleanup: {{ .Values.automaticOrphanedNodeCleanup }}
   {{- with .Values.sysctls }}
   sysctls:

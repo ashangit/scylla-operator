@@ -31,6 +31,12 @@ func (cc *ClusterReconciler) sync(c *scyllav1.ScyllaCluster) error {
 	logger.Info(ctx, "Starting reconciliation...")
 	logger.Debug(ctx, "Cluster State", "object", c)
 
+	// Sync Cluster Member Services
+	if err := cc.syncExternalCluster(ctx, c); err != nil {
+		cc.Recorder.Event(c, corev1.EventTypeWarning, naming.ErrSyncFailed, MessageMemberServicesSyncFailed)
+		return errors.Wrap(err, "failed to sync external cluster")
+	}
+
 	// Before syncing, ensure that all StatefulSets are up-to-date
 	stale, err := util.AreStatefulSetStatusesStale(ctx, c, cc.Client)
 	if err != nil {
