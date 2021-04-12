@@ -129,7 +129,7 @@ type RepairTaskSpec struct {
 }
 
 type CrossDcClusterSpec struct {
-	Name string `json:"name"`
+	Name  string   `json:"name"`
 	Seeds []string `json:"seeds,omitempty" mapstructure:"seeds,omitempty"`
 }
 

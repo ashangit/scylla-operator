@@ -525,7 +525,7 @@ func stringOrDefault(str, def string) string {
 func GetIpFromService(ctx context.Context, cc client.Client, svc *corev1.Service, hostNetworking bool) (string, error) {
 	ip := svc.Spec.ClusterIP
 	if hostNetworking {
-		endpoint  := &corev1.Endpoints{}
+		endpoint := &corev1.Endpoints{}
 		if err := cc.Get(ctx, naming.NamespacedName(svc.Name, svc.Namespace), endpoint); err != nil {
 			return "", errors.New(fmt.Sprintf("failed to get seeds, error: %+v", err))
 		}

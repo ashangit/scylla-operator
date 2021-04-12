@@ -92,7 +92,7 @@ func (cc *ClusterReconciler) syncExternalCluster(ctx context.Context, c *scyllav
 				},
 				Spec: corev1.ServiceSpec{
 					ClusterIP: corev1.ClusterIPNone,
-					Type: corev1.ServiceTypeClusterIP,
+					Type:      corev1.ServiceTypeClusterIP,
 					Ports: []corev1.ServicePort{
 						{
 							Name: "inter-node-communication",
@@ -117,8 +117,8 @@ func (cc *ClusterReconciler) syncExternalCluster(ctx context.Context, c *scyllav
 			}
 			endpoint := &corev1.Endpoints{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:            fmt.Sprintf("%s-%s-remote-cluster-%s-seed-%d", c.Name, c.Spec.Datacenter.Name, r.Name, id),
-					Namespace:       c.Namespace,
+					Name:      fmt.Sprintf("%s-%s-remote-cluster-%s-seed-%d", c.Name, c.Spec.Datacenter.Name, r.Name, id),
+					Namespace: c.Namespace,
 				},
 
 				Subsets: []corev1.EndpointSubset{
