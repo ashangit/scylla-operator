@@ -26,6 +26,9 @@ const (
 	// Readiness check will always fail when this label is added to member service.
 	NodeMaintenanceLabel = "scylla/node-maintenance"
 
+	// SeedLabel determines if a member is a seed or not.
+	IpLabel = "scylla/ip"
+
 	LabelValueTrue  = "true"
 	LabelValueFalse = "false"
 )

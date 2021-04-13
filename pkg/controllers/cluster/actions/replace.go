@@ -137,7 +137,7 @@ func (a *RackReplaceNode) replaceNode(ctx context.Context, state *State, member 
 
 	// Save replace address in RackStatus
 	rackStatus := c.Status.Racks[r.Name]
-	memberIp, err := resource.GetIpFromService(ctx, cc, member, c.Spec.Network.HostNetworking)
+	memberIp, err := resource.GetIpFromService(member, c.Spec.Network.HostNetworking)
 	if err != nil {
 		return err
 	}

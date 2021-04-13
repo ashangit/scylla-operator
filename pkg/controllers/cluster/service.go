@@ -9,6 +9,7 @@ import (
 	"github.com/scylladb/scylla-operator/pkg/controllers/cluster/util"
 	"github.com/scylladb/scylla-operator/pkg/naming"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -45,7 +46,15 @@ func (cc *ClusterReconciler) syncMemberServices(ctx context.Context, c *scyllav1
 			return errors.Wrapf(err, "listing pods for rack %s failed", r.Name)
 		}
 		for _, pod := range podlist.Items {
-			memberService := resource.MemberServiceForPod(&pod, c)
+			service := &corev1.Service{}
+			err := cc.Get(ctx, naming.NamespacedNameForObject(pod.GetObjectMeta()), service)
+			if err != nil && !apierrors.IsNotFound(err) {
+				return errors.Wrapf(err, "Get svc for pod %s failed", pod.Name)
+			}
+			memberService, err := resource.MemberServiceForPod(&pod, c, service)
+			if err != nil {
+				return errors.Wrapf(err, "error syncing member service")
+			}
 			op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, memberService, serviceMutateFn(ctx, memberService, cc.Client))
 			if err != nil {
 				return errors.Wrapf(err, "error syncing member service %s", memberService.Name)
@@ -81,8 +90,9 @@ func (cc *ClusterReconciler) syncExternalCluster(ctx context.Context, c *scyllav
 			cc.Logger.Info(ctx, "Create remote seed ", fmt.Sprintf("%s-%s-remote-cluster-%s-seed-%d", c.Name, c.Spec.Datacenter.Name, r.Name, id))
 			labels := naming.ClusterLabels(c)
 			labels[naming.DatacenterNameLabel] = r.Name
-			labels[naming.RackNameLabel] = "None"
+			labels[naming.RackNameLabel] = "MultiDC"
 			labels[naming.SeedLabel] = ""
+			labels[naming.IpLabel] = seed
 			service := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            fmt.Sprintf("%s-%s-remote-cluster-%s-seed-%d", c.Name, c.Spec.Datacenter.Name, r.Name, id),
@@ -91,7 +101,6 @@ func (cc *ClusterReconciler) syncExternalCluster(ctx context.Context, c *scyllav
 					Labels:          labels,
 				},
 				Spec: corev1.ServiceSpec{
-					ClusterIP: corev1.ClusterIPNone,
 					Type:      corev1.ServiceTypeClusterIP,
 					Ports: []corev1.ServicePort{
 						{
@@ -105,6 +114,11 @@ func (cc *ClusterReconciler) syncExternalCluster(ctx context.Context, c *scyllav
 					},
 				},
 			}
+
+			if c.Spec.Network.HostNetworking {
+				service.Spec.ClusterIP = corev1.ClusterIPNone
+			}
+
 			op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, service, serviceMutateFn(ctx, service, cc.Client))
 			if err != nil {
 				return errors.Wrapf(err, "error syncing service %s", service.Name)
@@ -114,42 +128,6 @@ func (cc *ClusterReconciler) syncExternalCluster(ctx context.Context, c *scyllav
 				cc.Logger.Info(ctx, "Member service created", "member", service.Name, "labels", service.Labels)
 			case controllerutil.OperationResultUpdated:
 				cc.Logger.Info(ctx, "Member service updated", "member", service.Name, "labels", service.Labels)
-			}
-			endpoint := &corev1.Endpoints{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("%s-%s-remote-cluster-%s-seed-%d", c.Name, c.Spec.Datacenter.Name, r.Name, id),
-					Namespace: c.Namespace,
-				},
-
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{
-								IP: seed,
-							},
-						},
-						Ports: []corev1.EndpointPort{
-							{
-								Name: "inter-node-communication",
-								Port: 7000,
-							},
-							{
-								Name: "ssl-inter-node-communication",
-								Port: 7001,
-							},
-						},
-					},
-				},
-			}
-			op, err = controllerutil.CreateOrUpdate(ctx, cc.Client, endpoint, endpointMutateFn(ctx, endpoint, cc.Client))
-			if err != nil {
-				return errors.Wrapf(err, "error syncing endpoint %s", endpoint.Name)
-			}
-			switch op {
-			case controllerutil.OperationResultCreated:
-				cc.Logger.Info(ctx, "endpoint created", "member", endpoint.Name, "labels", endpoint.Labels)
-			case controllerutil.OperationResultUpdated:
-				cc.Logger.Info(ctx, "endpoint updated", "member", endpoint.Name, "labels", endpoint.Labels)
 			}
 		}
 	}

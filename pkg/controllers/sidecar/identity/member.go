@@ -74,7 +74,7 @@ func Retrieve(ctx context.Context, name, namespace string, kubeclient kubernetes
 		return nil, errors.Wrap(err, "error getting cluster")
 	}
 
-	memberIp, err := resource.GetIpFromService(ctx, cc, memberService, cluster.Spec.Network.HostNetworking)
+	memberIp, err := resource.GetIpFromService(memberService, cluster.Spec.Network.HostNetworking)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func Retrieve(ctx context.Context, name, namespace string, kubeclient kubernetes
 	}, nil
 }
 
-func (m *Member) GetSeeds(ctx context.Context, kubeClient kubernetes.Interface, cc client.Client, hostNetworking bool) ([]string, error) {
+func (m *Member) GetSeeds(ctx context.Context, kubeClient kubernetes.Interface, hostNetworking bool) ([]string, error) {
 	var services *corev1.ServiceList
 	var err error
 
@@ -111,7 +111,7 @@ func (m *Member) GetSeeds(ctx context.Context, kubeClient kubernetes.Interface, 
 
 	seeds := []string{}
 	for _, svc := range services.Items {
-		seedIp, err := resource.GetIpFromService(ctx, cc, &svc, hostNetworking)
+		seedIp, err := resource.GetIpFromService(&svc, hostNetworking)
 		if err != nil {
 			return nil, err
 		}

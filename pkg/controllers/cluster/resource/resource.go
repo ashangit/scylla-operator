@@ -1,14 +1,7 @@
 package resource
 
 import (
-	"context"
 	"fmt"
-	"path"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
-	"strings"
-
-	"github.com/pkg/errors"
 	scyllav1 "github.com/scylladb/scylla-operator/pkg/api/v1"
 	"github.com/scylladb/scylla-operator/pkg/cmd/scylla-operator/options"
 	"github.com/scylladb/scylla-operator/pkg/controllers/cluster/util"
@@ -18,6 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"path"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -51,7 +47,7 @@ func HeadlessServiceForCluster(c *scyllav1.ScyllaCluster) *corev1.Service {
 	}
 }
 
-func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *corev1.Service {
+func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster, svc *corev1.Service) (*corev1.Service, error) {
 	labels := naming.ClusterLabels(cluster)
 	labels[naming.DatacenterNameLabel] = pod.Labels[naming.DatacenterNameLabel]
 	labels[naming.RackNameLabel] = pod.Labels[naming.RackNameLabel]
@@ -60,9 +56,33 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *core
 		labels[naming.SeedLabel] = ""
 	}
 	rackName := pod.Labels[naming.RackNameLabel]
-	if replaceAddr, ok := cluster.Status.Racks[rackName].ReplaceAddressFirstBoot[pod.Name]; ok && replaceAddr != "" {
+
+	replaceAddr, ok := cluster.Status.Racks[rackName].ReplaceAddressFirstBoot[pod.Name];
+	if ok && replaceAddr != "" {
 		labels[naming.ReplaceLabel] = replaceAddr
 	}
+
+	// No IP can be  found if in pending state and pod should not be replaced
+	//if (svc == nil || svc.ObjectMeta.Labels[naming.IpLabel] == "") && pod.Status.Phase == corev1.PodPending {
+	if (svc.ObjectMeta.Labels[naming.IpLabel] == "") && pod.Status.Phase == corev1.PodPending {
+		return nil, fmt.Errorf("pod in pending state and service not initialized")
+	}
+
+	if pod.Status.PodIP != "" {
+		labels[naming.IpLabel] = pod.Status.PodIP
+	} else {
+		labels[naming.IpLabel] = svc.ObjectMeta.Labels[naming.IpLabel]
+	}
+
+	// TODO do not push on this PR for multi dc
+	// Do not override maintenance and decommission label if set on service
+	if val, ok := svc.ObjectMeta.Labels[naming.NodeMaintenanceLabel]; ok {
+		labels[naming.NodeMaintenanceLabel] = val
+	}
+	if val, ok := svc.ObjectMeta.Labels[naming.DecommissionLabel]; ok {
+		labels[naming.DecommissionLabel] = val
+	}
+	// TODO do not push on this PR for multi dc
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -83,7 +103,7 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *core
 		service.Spec.ClusterIP = corev1.ClusterIPNone
 	}
 
-	return service
+	return service, nil
 }
 
 func memberServicePorts(cluster *scyllav1.ScyllaCluster) []corev1.ServicePort {
@@ -521,14 +541,10 @@ func stringOrDefault(str, def string) string {
 	return def
 }
 
-func GetIpFromService(ctx context.Context, cc client.Client, svc *corev1.Service, hostNetworking bool) (string, error) {
+func GetIpFromService(svc *corev1.Service, hostNetworking bool) (string, error) {
 	ip := svc.Spec.ClusterIP
 	if hostNetworking {
-		endpoint := &corev1.Endpoints{}
-		if err := cc.Get(ctx, naming.NamespacedName(svc.Name, svc.Namespace), endpoint); err != nil {
-			return "", errors.New(fmt.Sprintf("failed to get seeds, error: %+v", err))
-		}
-		ip = endpoint.Subsets[0].Addresses[0].IP
+		ip = svc.ObjectMeta.Labels[naming.IpLabel]
 	}
 	return ip, nil
 }
