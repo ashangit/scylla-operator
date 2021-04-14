@@ -91,11 +91,18 @@ func Retrieve(ctx context.Context, name, namespace string, kubeclient kubernetes
 	}, nil
 }
 
-func (m *Member) GetSeeds(ctx context.Context, kubeClient kubernetes.Interface, hostNetworking bool) ([]string, error) {
+func (m *Member) GetSeeds(ctx context.Context, kubeClient kubernetes.Interface, cluster *v1.ScyllaCluster) ([]string, error) {
 	var services *corev1.ServiceList
 	var err error
 
 	sel := fmt.Sprintf("%s,%s=%s", naming.SeedLabel, naming.ClusterNameLabel, m.Cluster)
+
+	// If the cluster is a multi DC cluster and not the initial cluster
+	// we only take external seeds service to ensure cluster will not bootstrap
+	// without joining the multi DC cluster seeds
+	if cluster.Spec.MultiDcCluster != nil && !cluster.Spec.MultiDcCluster.InitCluster {
+		sel = fmt.Sprintf("%s,%s=%s", sel, naming.ExternalSeedLabel, naming.LabelValueTrue)
+	}
 
 	const maxRetryCount = 5
 	for retryCount := 0; ; retryCount++ {
@@ -111,7 +118,7 @@ func (m *Member) GetSeeds(ctx context.Context, kubeClient kubernetes.Interface, 
 
 	seeds := []string{}
 	for _, svc := range services.Items {
-		seedIp, err := resource.GetIpFromService(&svc, hostNetworking)
+		seedIp, err := resource.GetIpFromService(&svc, cluster.Spec.Network.HostNetworking)
 		if err != nil {
 			return nil, err
 		}

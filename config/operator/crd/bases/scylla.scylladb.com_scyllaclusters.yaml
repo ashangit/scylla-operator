@@ -1441,8 +1441,11 @@ spec:
             multiDcCluster:
               description: Configuration for multi DC cluster
               properties:
+                initCluster:
+                  description: Indicate if this cluster is the initial cluster. Cluster will rely on internal seeds and won't wait for external seeds to be available otherwise clusters will only rely on external seeds
+                  type: boolean
                 seeds:
-                  description: List of distant seeds.
+                  description: List of seeds.
                   items:
                     type: string
                   type: array

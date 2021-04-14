@@ -205,7 +205,7 @@ func (s *ScyllaConfig) setupEntrypoint(ctx context.Context) (*exec.Cmd, error) {
 
 	m := s.member
 	// Get seeds
-	seeds, err := m.GetSeeds(ctx, s.kubeClient, cluster.Spec.Network.HostNetworking)
+	seeds, err := m.GetSeeds(ctx, s.kubeClient, cluster)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error getting seeds for cluster %s", s.member.Cluster)
 	}

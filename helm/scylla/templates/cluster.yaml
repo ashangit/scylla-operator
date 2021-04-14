@@ -18,6 +18,7 @@ spec:
   cpuset: {{ .Values.cpuset }}
   {{- if .Values.multiDcCluster.enable }}
   multiDcCluster:
+    initCluster: {{ .Values.multiDcCluster.initCluster }}
     {{- with .Values.multiDcCluster.seeds }}
     seeds:
       {{- toYaml . | nindent 4 }}

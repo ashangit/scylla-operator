@@ -130,7 +130,8 @@ type RepairTaskSpec struct {
 }
 
 type MultiDcClusterSpec struct {
-	Seeds  []string `json:"seeds,omitempty" mapstructure:"seeds,omitempty"`
+	InitCluster bool     `json:"initCluster,omitempty"`
+	Seeds       []string `json:"seeds,omitempty" mapstructure:"seeds,omitempty"`
 }
 
 type BackupTaskSpec struct {
