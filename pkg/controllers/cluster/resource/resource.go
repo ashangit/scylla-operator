@@ -62,13 +62,15 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster, svc *
 		labels[naming.ReplaceLabel] = replaceAddr
 	}
 
-	// No IP can be  found if in pending state and pod should not be replaced
-	if (svc.ObjectMeta.Labels[naming.IpLabel] == "") && pod.Status.Phase == corev1.PodPending {
-		return nil, fmt.Errorf("pod in pending state and service not initialized")
-	}
+	if cluster.Spec.Network.HostNetworking {
+		// No IP can be found if pod in pending state and servce doesn't already exist with IP label set
+		if (svc.ObjectMeta.Labels[naming.IpLabel] == "") && pod.Status.Phase == corev1.PodPending {
+			return nil, fmt.Errorf("pod in pending state and service not initialized")
+		}
 
-	if pod.Status.PodIP != "" {
-		labels[naming.IpLabel] = pod.Status.PodIP
+		if pod.Status.PodIP != "" {
+			labels[naming.IpLabel] = pod.Status.PodIP
+		}
 	}
 
 	service := &corev1.Service{
