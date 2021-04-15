@@ -554,8 +554,7 @@ func GetIpFromService(svc *corev1.Service, hostNetworking bool) (string, error) 
 	ip := svc.Spec.ClusterIP
 	if hostNetworking {
 		var ok bool
-		ip, ok = svc.ObjectMeta.Labels[naming.IpLabel]
-		if !ok {
+		if ip, ok = svc.ObjectMeta.Labels[naming.IpLabel]; !ok {
 			return "", errors.Errorf("%s label not found on member service %s", naming.IpLabel, svc.Name)
 		}
 	}
