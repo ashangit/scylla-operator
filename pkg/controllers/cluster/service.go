@@ -44,12 +44,12 @@ func (cc *ClusterReconciler) syncMemberServices(ctx context.Context, c *scyllav1
 			return errors.Wrapf(err, "listing pods for rack %s failed", r.Name)
 		}
 		for _, pod := range podlist.Items {
-			oldMemberService := &corev1.Service{}
-			err := cc.Get(ctx, naming.NamespacedNameForObject(pod.GetObjectMeta()), oldMemberService)
+			currentMemberService := &corev1.Service{}
+			err := cc.Get(ctx, naming.NamespacedNameForObject(pod.GetObjectMeta()), currentMemberService)
 			if err != nil && !apierrors.IsNotFound(err) {
-				return errors.Wrapf(err, "Get old member service for pod %s failed", pod.Name)
+				return errors.Wrapf(err, "Get current member service for pod %s failed", pod.Name)
 			}
-			memberService, err := resource.MemberServiceForPod(&pod, c, oldMemberService)
+			memberService, err := resource.MemberServiceForPod(&pod, c, currentMemberService)
 			if err != nil {
 				return errors.Wrapf(err, "error syncing member service for pod %s failed", pod.Name)
 			}
