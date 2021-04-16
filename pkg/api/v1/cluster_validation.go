@@ -113,7 +113,7 @@ func checkValues(c *ScyllaCluster) error {
 		}
 	}
 
-	if c.Spec.MultiDcCluster != nil {
+	if c.Spec.MultiDcCluster.Enabled() {
 		if !c.Spec.Network.HostNetworking {
 			return errors.Errorf("MultiDcCluster is only supported on hostNetworking cluster")
 		}

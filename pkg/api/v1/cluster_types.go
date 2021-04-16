@@ -247,6 +247,10 @@ func (a *AlternatorSpec) Enabled() bool {
 	return a != nil && a.Port > 0
 }
 
+func (m *MultiDcClusterSpec) Enabled() bool {
+	return m != nil
+}
+
 type RepairTaskStatus struct {
 	RepairTaskSpec `json:",inline" mapstructure:",squash"`
 	ID             string `json:"id"`

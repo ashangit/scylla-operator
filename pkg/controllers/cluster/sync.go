@@ -55,7 +55,7 @@ func (cc *ClusterReconciler) sync(c *scyllav1.ScyllaCluster) error {
 	}
 
 	// Sync Multi Dc Services
-	if c.Spec.MultiDcCluster != nil {
+	if c.Spec.MultiDcCluster.Enabled() {
 		if err := cc.syncMultiDcServices(ctx, c); err != nil {
 			cc.Recorder.Event(c, corev1.EventTypeWarning, naming.ErrSyncFailed, MessageMultiDcServicesSyncFailed)
 			return errors.Wrap(err, "failed to sync multi dc service")

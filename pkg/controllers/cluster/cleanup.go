@@ -52,7 +52,7 @@ func (cc *ClusterReconciler) cleanup(ctx context.Context, c *scyllav1.ScyllaClus
 
 	}
 
-	if c.Spec.MultiDcCluster != nil {
+	if c.Spec.MultiDcCluster.Enabled() {
 		// Get all multi dc seeds services
 		err := cc.List(ctx, svcList, &client.ListOptions{
 			Namespace:     c.Namespace,
