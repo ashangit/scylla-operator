@@ -139,9 +139,9 @@ func (cc *ClusterReconciler) externalSeedsCleanup(ctx context.Context, c *scylla
 				return errors.WithStack(err)
 			}
 			if svcIndex > maxIndex {
-				err := cc.cleanupMemberResources(ctx, &svc, c)
-				if err != nil {
-					return errors.WithStack(err)
+				// Delete Service
+				if err = cc.Delete(ctx, &svc); err != nil && !apierrors.IsNotFound(err) {
+					return errors.Wrap(err, "failed to delete external service")
 				}
 			}
 		}

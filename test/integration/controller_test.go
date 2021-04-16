@@ -4,6 +4,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -15,6 +16,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,7 +53,7 @@ var _ = Describe("Cluster controller", func() {
 			for _, rack := range scylla.Spec.Datacenter.Racks {
 				for _, replicas := range testEnv.ClusterScaleSteps(rack.Members) {
 					Expect(testEnv.AssertRackScaled(ctx, rack, scylla, replicas)).To(Succeed())
-					Expect(sst.CreatePods(ctx, scylla)).To(Succeed())
+					Expect(sst.CreatePods(ctx, scylla, false)).To(Succeed())
 				}
 			}
 
@@ -84,7 +86,7 @@ var _ = Describe("Cluster controller", func() {
 		// Cluster should be scaled sequentially up to member count
 		for _, replicas := range testEnv.ClusterScaleSteps(rack.Members) {
 			Expect(testEnv.AssertRackScaled(ctx, rack, scylla, replicas)).To(Succeed())
-			Expect(sstStub.CreatePods(ctx, scylla)).To(Succeed())
+			Expect(sstStub.CreatePods(ctx, scylla, false)).To(Succeed())
 			Expect(sstStub.CreatePVCs(ctx, scylla, pvOption)).To(Succeed())
 		}
 
@@ -107,6 +109,79 @@ var _ = Describe("Cluster controller", func() {
 		}).Should(HaveKeyWithValue(naming.ReplaceLabel, ""))
 	})
 
+	It("Set pod ip in scylla/ip member service label", func() {
+		scylla := singleNodeCluster(ns)
+		scylla.Spec.Network.HostNetworking = true
+
+		Expect(testEnv.Create(ctx, scylla)).To(Succeed())
+		defer func() {
+			Expect(testEnv.Delete(ctx, scylla)).To(Succeed())
+		}()
+
+		Expect(testEnv.WaitForCluster(ctx, scylla)).To(Succeed())
+		Expect(testEnv.Refresh(ctx, scylla)).To(Succeed())
+
+		sstStub := integration.NewStatefulSetOperatorStub(testEnv)
+		rack := scylla.Spec.Datacenter.Racks[0]
+
+		pvOption := integration.WithPVNodeAffinity([]corev1.NodeSelectorRequirement{
+			{
+				Key:      "some-label",
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"some-value"},
+			},
+		})
+
+		// Cluster should be scaled sequentially up to member count
+		for _, replicas := range testEnv.ClusterScaleSteps(rack.Members) {
+			Expect(testEnv.AssertRackScaled(ctx, rack, scylla, replicas)).To(Succeed())
+			Expect(sstStub.CreatePods(ctx, scylla, true, func (pod *corev1.Pod) {
+				pod.Status.PodIP = fmt.Sprintf("20.20.20.20")
+			})).To(Succeed())
+			Expect(sstStub.CreatePVCs(ctx, scylla, pvOption)).To(Succeed())
+		}
+
+		services, err := rackMemberService(ns.Namespace, rack, scylla)
+		Expect(err).To(BeNil())
+		Expect(services).To(Not(BeEmpty()))
+
+		service := services[0]
+
+		Eventually(func() map[string]string {
+			Expect(testEnv.Refresh(ctx, &service)).To(Succeed())
+
+			return service.Labels
+		}).Should(HaveKeyWithValue(naming.IpLabel, "20.20.20.20"))
+	})
+
+	It("Create multi dc seed", func() {
+		scylla := singleNodeCluster(ns)
+		scylla.Spec.Network.HostNetworking = true
+		scylla.Spec.MultiDcCluster = &scyllav1.MultiDcClusterSpec{
+			Seeds: []string{"10.10.10.10"},
+		}
+
+		Expect(testEnv.Create(ctx, scylla)).To(Succeed())
+		defer func() {
+			Expect(testEnv.Delete(ctx, scylla)).To(Succeed())
+		}()
+
+		Expect(testEnv.WaitForCluster(ctx, scylla)).To(Succeed())
+		Expect(testEnv.Refresh(ctx, scylla)).To(Succeed())
+
+		services, err := multiDcService(ns.Namespace, len(scylla.Spec.MultiDcCluster.Seeds))
+		Expect(err).To(BeNil())
+		Expect(services).To(Not(BeEmpty()))
+
+		service := services[0]
+
+		Eventually(func() map[string]string {
+			Expect(testEnv.Refresh(ctx, &service)).To(Succeed())
+
+			return service.Labels
+		}).Should(HaveKeyWithValue(naming.IpLabel, "10.10.10.10"))
+	})
+
 	Context("Node replace", func() {
 		var (
 			scylla  *scyllav1.ScyllaCluster
@@ -126,7 +201,7 @@ var _ = Describe("Cluster controller", func() {
 			rack := scylla.Spec.Datacenter.Racks[0]
 			for _, replicas := range testEnv.ClusterScaleSteps(rack.Members) {
 				Expect(testEnv.AssertRackScaled(ctx, rack, scylla, replicas)).To(Succeed())
-				Expect(sstStub.CreatePods(ctx, scylla)).To(Succeed())
+				Expect(sstStub.CreatePods(ctx, scylla, false)).To(Succeed())
 				Expect(sstStub.CreatePVCs(ctx, scylla)).To(Succeed())
 			}
 		})
@@ -155,7 +230,7 @@ var _ = Describe("Cluster controller", func() {
 				}
 
 				return scylla.Status.Racks[rack.Name].ReplaceAddressFirstBoot, nil
-			}).Should(HaveKeyWithValue(serviceToReplace.Name, replacedServiceIP))
+			}, shortWait).Should(HaveKeyWithValue(serviceToReplace.Name, replacedServiceIP))
 
 			By("Old PVC should be removed")
 			Eventually(func() []corev1.PersistentVolumeClaim {
@@ -180,7 +255,7 @@ var _ = Describe("Cluster controller", func() {
 			}, shortWait).Should(HaveLen(int(rack.Members - 1)))
 
 			By("When new pod is scheduled")
-			Expect(sstStub.CreatePods(ctx, scylla)).To(Succeed())
+			Expect(sstStub.CreatePods(ctx, scylla, false)).To(Succeed())
 
 			By("New service should be created with replace label pointing to old one")
 			Eventually(func() (map[string]string, error) {
@@ -241,17 +316,29 @@ var _ = Describe("Cluster controller", func() {
 func rackMemberService(namespace string, rack scyllav1.RackSpec, cluster *scyllav1.ScyllaCluster) ([]corev1.Service, error) {
 	services := &corev1.ServiceList{}
 	Expect(wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
-		err := testEnv.List(ctx, services, &client.ListOptions{
-			Namespace:     namespace,
-			LabelSelector: naming.RackSelector(rack, cluster),
-		})
-		if err != nil {
-			return false, err
-		}
-		return len(services.Items) == int(rack.Members), nil
+		return getService(namespace, naming.RackSelector(rack, cluster), int(rack.Members), services)
 	})).To(Succeed())
 
 	return services.Items, nil
+}
+
+func multiDcService(namespace string, multiDcSeedsCount int) ([]corev1.Service, error) {
+	services := &corev1.ServiceList{}
+	Expect(wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
+		return getService(namespace, naming.ExtrenalSeedSelector(), multiDcSeedsCount, services)
+	})).To(Succeed())
+	return services.Items, nil
+}
+
+func getService(namespace string, selector labels.Selector, count int, services *corev1.ServiceList) (bool, error) {
+	err := testEnv.List(ctx, services, &client.ListOptions{
+		Namespace:     namespace,
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return false, err
+	}
+	return len(services.Items) == count, nil
 }
 
 func nonSeedServices(namespace string, rack scyllav1.RackSpec, cluster *scyllav1.ScyllaCluster) ([]corev1.Service, error) {
