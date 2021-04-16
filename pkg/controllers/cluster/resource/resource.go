@@ -95,14 +95,14 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster, svc *
 	return service, nil
 }
 
-func ServiceForExternalSeed(externalServiceName, seed string, cluster *scyllav1.ScyllaCluster) (*corev1.Service, error) {
+func ServiceForMultiDcSeed(multiDcServiceName, seed string, cluster *scyllav1.ScyllaCluster) (*corev1.Service, error) {
 	labels := naming.ClusterLabels(cluster)
 	labels[naming.SeedLabel] = ""
 	labels[naming.IpLabel] = seed
-	labels[naming.ExternalSeedLabel] = naming.LabelValueTrue
+	labels[naming.MultiDcSeedLabel] = naming.LabelValueTrue
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            externalServiceName,
+			Name:            multiDcServiceName,
 			Namespace:       cluster.Namespace,
 			OwnerReferences: []metav1.OwnerReference{util.NewControllerRef(cluster)},
 			Labels:          labels,

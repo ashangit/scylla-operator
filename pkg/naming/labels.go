@@ -53,10 +53,10 @@ func RackSelector(r scyllav1.RackSpec, c *scyllav1.ScyllaCluster) labels.Selecto
 	return sel
 }
 
-// ExtrenalSeedSelector returns a LabelSelector for the external seed service.
-func ExtrenalSeedSelector() labels.Selector {
+// MultiDcSeedSelector returns a LabelSelector for the external seed service.
+func MultiDcSeedSelector() labels.Selector {
 	sel := labels.SelectorFromSet(map[string]string{
-		ExternalSeedLabel: LabelValueTrue,
+		MultiDcSeedLabel: LabelValueTrue,
 	})
 
 	return sel

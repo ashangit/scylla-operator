@@ -83,36 +83,23 @@ func serviceMutateFn(ctx context.Context, newService *corev1.Service, client cli
 
 func (cc *ClusterReconciler) syncMultiDcServices(ctx context.Context, cluster *scyllav1.ScyllaCluster) error {
 	for id, seed := range cluster.Spec.MultiDcCluster.Seeds {
-		externalServiceName := fmt.Sprintf("%s-%s-external-seed-%d", cluster.Name, cluster.Spec.Datacenter.Name, id)
+		multiDcServiceName := fmt.Sprintf("%s-%s-multi-dc-seed-%d", cluster.Name, cluster.Spec.Datacenter.Name, id)
 
-		cc.Logger.Info(ctx, "Create external seed ", externalServiceName)
-		externalService, err := resource.ServiceForExternalSeed(externalServiceName, seed, cluster)
+		cc.Logger.Info(ctx, "Create multi dc seed ", multiDcServiceName)
+		multiDcService, err := resource.ServiceForMultiDcSeed(multiDcServiceName, seed, cluster)
 		if err != nil {
-			return errors.Wrapf(err, "error syncing external seed service %s for seed %s", externalServiceName, seed)
+			return errors.Wrapf(err, "error syncing multi dc seed service %s for seed %s", multiDcServiceName, seed)
 		}
-		op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, externalService, serviceMutateFn(ctx, externalService, cc.Client))
+		op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, multiDcService, serviceMutateFn(ctx, multiDcService, cc.Client))
 		if err != nil {
-			return errors.Wrapf(err, "error syncing service %s", externalService.Name)
+			return errors.Wrapf(err, "error syncing multi dc service %s", multiDcService.Name)
 		}
 		switch op {
 		case controllerutil.OperationResultCreated:
-			cc.Logger.Info(ctx, "External seed service created", "externalSeed", externalService.Name, "labels", externalService.Labels)
+			cc.Logger.Info(ctx, "Multi Dc seed service created", "multiDcSeed", multiDcService.Name, "labels", multiDcService.Labels)
 		case controllerutil.OperationResultUpdated:
-			cc.Logger.Info(ctx, "External seed service updated", "externalSeed", externalService.Name, "labels", externalService.Labels)
+			cc.Logger.Info(ctx, "Multi Dc seed service updated", "multiDcSeed", multiDcService.Name, "labels", multiDcService.Labels)
 		}
 	}
 	return nil
-}
-
-// syncService checks if the given Service exists and creates it if it doesn't
-// it creates it
-func endpointMutateFn(ctx context.Context, endpoint *corev1.Endpoints, client client.Client) func() error {
-	return func() error {
-		// TODO: probably nothing has to be done, check v1 implementation of CreateOrUpdate
-		//existingService := existing.(*corev1.Service)
-		//if !reflect.DeepEqual(newService.Spec, existingService.Spec) {
-		//	return client.Update(ctx, existing)
-		//}
-		return nil
-	}
 }

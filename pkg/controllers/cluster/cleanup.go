@@ -53,16 +53,16 @@ func (cc *ClusterReconciler) cleanup(ctx context.Context, c *scyllav1.ScyllaClus
 	}
 
 	if c.Spec.MultiDcCluster != nil {
-		// Get all external seeds services
+		// Get all multi dc seeds services
 		err := cc.List(ctx, svcList, &client.ListOptions{
 			Namespace:     c.Namespace,
-			LabelSelector: naming.ExtrenalSeedSelector(),
+			LabelSelector: naming.MultiDcSeedSelector(),
 		})
 		if err != nil {
-			return errors.Wrap(err, "listing external seeds services")
+			return errors.Wrap(err, "listing multi dc seeds services")
 		}
-		if err := cc.externalSeedsCleanup(ctx, c, svcList); err != nil {
-			return errors.Wrap(err, "external seed cleanup")
+		if err := cc.multiDcSeedsCleanup(ctx, c, svcList); err != nil {
+			return errors.Wrap(err, "multi dc seed cleanup")
 		}
 	}
 	return nil
@@ -125,14 +125,14 @@ func (cc *ClusterReconciler) orphanedCleanup(ctx context.Context, c *scyllav1.Sc
 	return nil
 }
 
-func (cc *ClusterReconciler) externalSeedsCleanup(ctx context.Context, c *scyllav1.ScyllaCluster, svcs *corev1.ServiceList) error {
-	externalSeedsCount := int32(len(c.Spec.MultiDcCluster.Seeds))
-	externalSeedsServicesCount := int32(len(svcs.Items))
+func (cc *ClusterReconciler) multiDcSeedsCleanup(ctx context.Context, c *scyllav1.ScyllaCluster, svcs *corev1.ServiceList) error {
+	multiDcSeedsCount := int32(len(c.Spec.MultiDcCluster.Seeds))
+	multiDcSeedsServicesCount := int32(len(svcs.Items))
 	// If there are more services than members, some services need to be cleaned up
-	if externalSeedsServicesCount > externalSeedsCount {
+	if multiDcSeedsServicesCount > multiDcSeedsCount {
 		// maxIndex is the maximum index that should be present in a
-		// external seed service
-		maxIndex := externalSeedsCount - 1
+		// multi dc seed service
+		maxIndex := multiDcSeedsCount - 1
 		for _, svc := range svcs.Items {
 			svcIndex, err := naming.IndexFromName(svc.Name)
 			if err != nil {
@@ -141,7 +141,7 @@ func (cc *ClusterReconciler) externalSeedsCleanup(ctx context.Context, c *scylla
 			if svcIndex > maxIndex {
 				// Delete Service
 				if err = cc.Delete(ctx, &svc); err != nil && !apierrors.IsNotFound(err) {
-					return errors.Wrap(err, "failed to delete external service")
+					return errors.Wrap(err, "failed to delete multi dc service")
 				}
 			}
 		}

@@ -54,7 +54,7 @@ func (cc *ClusterReconciler) sync(c *scyllav1.ScyllaCluster) error {
 		return errors.Wrap(err, "failed to sync headless service")
 	}
 
-	// Sync Cluster Member Services
+	// Sync Multi Dc Services
 	if c.Spec.MultiDcCluster != nil {
 		if err := cc.syncMultiDcServices(ctx, c); err != nil {
 			cc.Recorder.Event(c, corev1.EventTypeWarning, naming.ErrSyncFailed, MessageMultiDcServicesSyncFailed)

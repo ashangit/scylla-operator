@@ -135,7 +135,7 @@ var _ = Describe("Cluster controller", func() {
 		// Cluster should be scaled sequentially up to member count
 		for _, replicas := range testEnv.ClusterScaleSteps(rack.Members) {
 			Expect(testEnv.AssertRackScaled(ctx, rack, scylla, replicas)).To(Succeed())
-			Expect(sstStub.CreatePods(ctx, scylla, true, func (pod *corev1.Pod) {
+			Expect(sstStub.CreatePods(ctx, scylla, true, func(pod *corev1.Pod) {
 				pod.Status.PodIP = fmt.Sprintf("20.20.20.20")
 			})).To(Succeed())
 			Expect(sstStub.CreatePVCs(ctx, scylla, pvOption)).To(Succeed())
@@ -325,7 +325,7 @@ func rackMemberService(namespace string, rack scyllav1.RackSpec, cluster *scylla
 func multiDcService(namespace string, multiDcSeedsCount int) ([]corev1.Service, error) {
 	services := &corev1.ServiceList{}
 	Expect(wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
-		return getService(namespace, naming.ExtrenalSeedSelector(), multiDcSeedsCount, services)
+		return getService(namespace, naming.MultiDcSeedSelector(), multiDcSeedsCount, services)
 	})).To(Succeed())
 	return services.Items, nil
 }

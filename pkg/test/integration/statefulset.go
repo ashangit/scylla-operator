@@ -83,8 +83,7 @@ func (s *StatefulSetOperatorStub) CreatePodsPartition(ctx context.Context, clust
 				Spec: sts.Spec.Template.Spec,
 				Status: corev1.PodStatus{
 					Phase: corev1.PodRunning,
-			    },
-
+				},
 			}
 
 			for i, c := range podTemplate.Spec.Containers {
