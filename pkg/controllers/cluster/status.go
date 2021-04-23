@@ -122,7 +122,7 @@ func (cc *ClusterReconciler) updateStatus(ctx context.Context, cluster *scyllav1
 					return errors.New("seed node replace is not supported")
 				}
 				if replaceAddr == "" {
-					memberIp, err := resource.GetIpFromService(&svc, cluster.Spec.Network.HostNetworking)
+					memberIp, err := resource.GetIpFromService(&svc, cluster)
 					if err != nil {
 						return err
 					}

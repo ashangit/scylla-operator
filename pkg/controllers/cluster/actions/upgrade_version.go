@@ -90,7 +90,7 @@ func (a *ClusterVersionUpgrade) nonMaintenanceHosts(ctx context.Context) ([]stri
 		}
 
 		for _, s := range services {
-			ip, err := resource.GetIpFromService(&s, a.Cluster.Spec.Network.HostNetworking)
+			ip, err := resource.GetIpFromService(&s, a.Cluster)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get IP from member service")
 			}

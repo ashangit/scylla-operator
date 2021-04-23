@@ -552,9 +552,9 @@ func stringOrDefault(str, def string) string {
 	return def
 }
 
-func GetIpFromService(svc *corev1.Service, hostNetworking bool) (string, error) {
+func GetIpFromService(svc *corev1.Service, c *scyllav1.ScyllaCluster) (string, error) {
 	ip := svc.Spec.ClusterIP
-	if hostNetworking {
+	if c.Spec.Network.HostNetworking {
 		var ok bool
 		if ip, ok = svc.ObjectMeta.Labels[naming.IpLabel]; !ok {
 			return "", errors.Errorf("%s label not found on member service %s", naming.IpLabel, svc.Name)
