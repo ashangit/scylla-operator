@@ -41,7 +41,7 @@ sysctls: []
 
 # Activate multi DC cluster and define external seeds
 multiDcCluster:
-  enable: false
+  enabled: false
   # Indicate if this cluster is the initial cluster.
   # Cluster will rely on internal seeds and won't wait for external seeds to be available otherwise clusters will only rely on external seeds
   initCluster: false
