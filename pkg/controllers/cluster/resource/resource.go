@@ -49,7 +49,7 @@ func HeadlessServiceForCluster(c *scyllav1.ScyllaCluster) *corev1.Service {
 	}
 }
 
-func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster, currentMemberService *corev1.Service) (*corev1.Service, error) {
+func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) (*corev1.Service, error) {
 	labels := naming.ClusterLabels(cluster)
 	labels[naming.DatacenterNameLabel] = pod.Labels[naming.DatacenterNameLabel]
 	labels[naming.RackNameLabel] = pod.Labels[naming.RackNameLabel]
@@ -63,11 +63,6 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster, curre
 	}
 
 	if cluster.Spec.Network.HostNetworking {
-		// No IP can be found if pod in pending state and servce doesn't already exist with IP label set
-		if (currentMemberService.ObjectMeta.Labels[naming.IpLabel] == "") && pod.Status.Phase == corev1.PodPending {
-			return nil, fmt.Errorf("pod in pending state and service not initialized")
-		}
-
 		if pod.Status.PodIP != "" {
 			labels[naming.IpLabel] = pod.Status.PodIP
 		}
