@@ -97,7 +97,7 @@ spec:
 * `repairs`: Optional field. Repair tasks definitions. See `Scylla Manager settings` for details.
 * `backups`: Optional field. Repair tasks definitions. See `Scylla Manager settings` for details.
 * `multiDcCluster`: Optional field. Allow to configure multi data center cluster. This feature is only supported with hostNetworking enabled. See [details](https://docs.scylladb.com/operating-scylla/procedures/cluster-management/create_cluster_multidc/).
-    * `initCluster`: Optional field. Indicate if this cluster is the initial cluster. Init cluster rely on local seeds and multiDcCluster seeds while non init one only rely on multiDcCluster seeds.
+    * `initCluster`: Optional field. Indicate if this cluster is the initial cluster. Init cluster rely on local seeds while non init one only rely on multi dc seeds during bootstrap and then on local seeds only.
     * `seeds`: Optional field. List of seeds .
 
 In the Scylla model, each cluster contains datacenters and each datacenter contains racks. At the moment, the operator only supports single datacenter setups.

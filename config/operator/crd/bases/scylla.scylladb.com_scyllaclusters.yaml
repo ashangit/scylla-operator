@@ -1442,7 +1442,7 @@ spec:
               description: Configuration for multi DC cluster
               properties:
                 initCluster:
-                  description: Indicate if this cluster is the initial cluster. Cluster will rely on internal seeds and won't wait for external seeds to be available otherwise clusters will only rely on external seeds
+                  description: Indicate if this cluster is the initial cluster. Init cluster rely on local seeds while non init one only rely on multi dc seeds during bootstrap and then on local seeds only.
                   type: boolean
                 seeds:
                   description: List of seeds.
@@ -1589,6 +1589,9 @@ spec:
                 - name
                 type: object
               type: array
+            bootstrap:
+              description: bootstrap indicate if the cluster has been well bootstrap from multi dc seed.
+              type: string
             managerId:
               description: ManagerID contains ID under which cluster was registered in Scylla Manager.
               type: string

@@ -91,12 +91,12 @@ func (cc *ClusterReconciler) syncMultiDcServices(ctx context.Context, cluster *s
 	for id, seed := range cluster.Spec.MultiDcCluster.Seeds {
 		multiDcServiceName := fmt.Sprintf("%s-%s-multi-dc-seed-%d", cluster.Name, cluster.Spec.Datacenter.Name, id)
 
-		cc.Logger.Info(ctx, "Create multi dc seed ", multiDcServiceName)
+		cc.Logger.Info(ctx, "Create multi dc seed", "multiDcServiceName", multiDcServiceName)
 		multiDcService, err := resource.ServiceForMultiDcSeed(multiDcServiceName, seed, cluster)
 		if err != nil {
 			return errors.Wrapf(err, "error syncing multi dc seed service %s for seed %s", multiDcServiceName, seed)
 		}
-		op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, multiDcService, serviceMutateFn(ctx, multiDcService, cc.Client))
+		op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, multiDcService, serviceMultiDcMutateFn(multiDcService, multiDcService.DeepCopy()))
 		if err != nil {
 			return errors.Wrapf(err, "error syncing multi dc service %s", multiDcService.Name)
 		}
@@ -108,4 +108,11 @@ func (cc *ClusterReconciler) syncMultiDcServices(ctx context.Context, cluster *s
 		}
 	}
 	return nil
+}
+
+func serviceMultiDcMutateFn(service *corev1.Service, newService *corev1.Service) func() error {
+	return func() error {
+		service.ObjectMeta.Labels[naming.IpLabel] = newService.ObjectMeta.Labels[naming.IpLabel]
+		return nil
+	}
 }

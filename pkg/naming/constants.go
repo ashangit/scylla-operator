@@ -68,6 +68,14 @@ const (
 	ErrSyncFailed = "ErrSyncFailed"
 )
 
+// Bootstrap Values
+const (
+	// BoostrapOngoing indicate cluster is still bootstraping from multi dc seeds
+	BoostrapOngoing = "ongoing"
+	// BoostrapFinished indicate cluster has finished bootstraping from multi dc seeds
+	BoostrapFinished = "finished"
+)
+
 // Configuration Values
 const (
 	ScyllaContainerName          = "scylla"

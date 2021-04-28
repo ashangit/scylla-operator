@@ -92,9 +92,8 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) (*cor
 
 func ServiceForMultiDcSeed(multiDcServiceName, seed string, cluster *scyllav1.ScyllaCluster) (*corev1.Service, error) {
 	labels := naming.ClusterLabels(cluster)
-	labels[naming.SeedLabel] = ""
-	labels[naming.IpLabel] = seed
 	labels[naming.MultiDcSeedLabel] = naming.LabelValueTrue
+	labels[naming.IpLabel] = seed
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            multiDcServiceName,

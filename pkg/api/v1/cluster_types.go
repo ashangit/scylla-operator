@@ -275,6 +275,8 @@ type ClusterStatus struct {
 	Backups []BackupTaskStatus `json:"backups,omitempty"`
 	// Upgrade reflects state of ongoing upgrade procedure.
 	Upgrade *UpgradeStatus `json:"upgrade,omitempty"`
+	// Bootstrap indicate if the cluster has been well bootstrap from multi dc seed.
+	Bootstrap string `json:"bootstrap,omitempty"`
 }
 
 // UpgradeStatus contains state of ongoing upgrade procedure.

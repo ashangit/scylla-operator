@@ -109,7 +109,7 @@ var _ = Describe("Cluster controller", func() {
 		}).Should(HaveKeyWithValue(naming.ReplaceLabel, ""))
 	})
 
-	It("Set pod ip in scylla/ip member service label", func() {
+	It("Set pod ip in scylla/ip member service label with hostNetwork enbaled", func() {
 		scylla := singleNodeCluster(ns)
 		scylla.Spec.Network.HostNetworking = true
 
@@ -124,21 +124,11 @@ var _ = Describe("Cluster controller", func() {
 		sstStub := integration.NewStatefulSetOperatorStub(testEnv)
 		rack := scylla.Spec.Datacenter.Racks[0]
 
-		pvOption := integration.WithPVNodeAffinity([]corev1.NodeSelectorRequirement{
-			{
-				Key:      "some-label",
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"some-value"},
-			},
-		})
-
-		// Cluster should be scaled sequentially up to member count
 		for _, replicas := range testEnv.ClusterScaleSteps(rack.Members) {
 			Expect(testEnv.AssertRackScaled(ctx, rack, scylla, replicas)).To(Succeed())
 			Expect(sstStub.CreatePods(ctx, scylla, true, func(pod *corev1.Pod) {
 				pod.Status.PodIP = fmt.Sprintf("20.20.20.20")
 			})).To(Succeed())
-			Expect(sstStub.CreatePVCs(ctx, scylla, pvOption)).To(Succeed())
 		}
 
 		services, err := rackMemberService(ns.Namespace, rack, scylla)
@@ -180,6 +170,45 @@ var _ = Describe("Cluster controller", func() {
 
 			return service.Labels
 		}).Should(HaveKeyWithValue(naming.IpLabel, "10.10.10.10"))
+	})
+
+	It("Bootstrap ongoing", func() {
+		scylla := singleNodeCluster(ns)
+		scylla.Spec.Network.HostNetworking = true
+		scylla.Spec.MultiDcCluster = &scyllav1.MultiDcClusterSpec{
+			Seeds: []string{"10.10.10.10"},
+		}
+
+		Expect(testEnv.Create(ctx, scylla)).To(Succeed())
+		defer func() {
+			Expect(testEnv.Delete(ctx, scylla)).To(Succeed())
+		}()
+
+		Expect(testEnv.WaitForCluster(ctx, scylla)).To(Succeed())
+
+		// Boostratp state should be ongoing as not all sts members are ready
+		Eventually(func() bool {
+			Expect(testEnv.Refresh(ctx, scylla)).To(Succeed())
+
+			return scylla.Status.Bootstrap == "ongoing"
+		}, shortWait).Should(BeTrue())
+
+		Expect(testEnv.Refresh(ctx, scylla)).To(Succeed())
+		sstStub := integration.NewStatefulSetOperatorStub(testEnv)
+		rack := scylla.Spec.Datacenter.Racks[0]
+
+		for _, replicas := range testEnv.ClusterScaleSteps(rack.Members) {
+			Expect(testEnv.AssertRackScaled(ctx, rack, scylla, replicas)).To(Succeed())
+			Expect(sstStub.CreatePods(ctx, scylla, true)).To(Succeed())
+		}
+
+		// Boostrap state should be finished as all sts members are ready
+		Eventually(func() bool {
+			Expect(testEnv.Refresh(ctx, scylla)).To(Succeed())
+
+			return scylla.Status.Bootstrap == "finished"
+		}, shortWait).Should(BeTrue())
+
 	})
 
 	Context("Node replace", func() {
