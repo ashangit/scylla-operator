@@ -44,10 +44,7 @@ func (cc *ClusterReconciler) syncMemberServices(ctx context.Context, c *scyllav1
 		}
 
 		for _, pod := range podlist.Items {
-			memberService, err := resource.MemberServiceForPod(&pod, c)
-			if err != nil {
-				return errors.Wrapf(err, "error syncing member service for pod %s failed", pod.Name)
-			}
+			memberService := resource.MemberServiceForPod(&pod, c)
 			op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, memberService, serviceMemberMutateFn(memberService, memberService.DeepCopy()))
 			if err != nil {
 				return errors.Wrapf(err, "error syncing member service %s", memberService.Name)
@@ -92,10 +89,7 @@ func (cc *ClusterReconciler) syncMultiDcServices(ctx context.Context, cluster *s
 		multiDcServiceName := fmt.Sprintf("%s-%s-multi-dc-seed-%d", cluster.Name, cluster.Spec.Datacenter.Name, id)
 
 		cc.Logger.Info(ctx, "Create multi dc seed", "multiDcServiceName", multiDcServiceName)
-		multiDcService, err := resource.ServiceForMultiDcSeed(multiDcServiceName, seed, cluster)
-		if err != nil {
-			return errors.Wrapf(err, "error syncing multi dc seed service %s for seed %s", multiDcServiceName, seed)
-		}
+		multiDcService := resource.ServiceForMultiDcSeed(multiDcServiceName, seed, cluster)
 		op, err := controllerutil.CreateOrUpdate(ctx, cc.Client, multiDcService, serviceMultiDcMutateFn(multiDcService, multiDcService.DeepCopy()))
 		if err != nil {
 			return errors.Wrapf(err, "error syncing multi dc service %s", multiDcService.Name)

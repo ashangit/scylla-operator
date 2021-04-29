@@ -49,7 +49,7 @@ func HeadlessServiceForCluster(c *scyllav1.ScyllaCluster) *corev1.Service {
 	}
 }
 
-func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) (*corev1.Service, error) {
+func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) *corev1.Service {
 	labels := naming.ClusterLabels(cluster)
 	labels[naming.DatacenterNameLabel] = pod.Labels[naming.DatacenterNameLabel]
 	labels[naming.RackNameLabel] = pod.Labels[naming.RackNameLabel]
@@ -62,6 +62,8 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) (*cor
 		labels[naming.ReplaceLabel] = replaceAddr
 	}
 
+	// When cluster use hostNetworking we rely on pod IP
+	// The pod IP is only available when pod is running
 	if cluster.Spec.Network.HostNetworking {
 		if pod.Status.PodIP != "" {
 			labels[naming.IpLabel] = pod.Status.PodIP
@@ -87,10 +89,10 @@ func MemberServiceForPod(pod *corev1.Pod, cluster *scyllav1.ScyllaCluster) (*cor
 		service.Spec.ClusterIP = corev1.ClusterIPNone
 	}
 
-	return service, nil
+	return service
 }
 
-func ServiceForMultiDcSeed(multiDcServiceName, seed string, cluster *scyllav1.ScyllaCluster) (*corev1.Service, error) {
+func ServiceForMultiDcSeed(multiDcServiceName, seed string, cluster *scyllav1.ScyllaCluster) *corev1.Service {
 	labels := naming.ClusterLabels(cluster)
 	labels[naming.MultiDcSeedLabel] = naming.LabelValueTrue
 	labels[naming.IpLabel] = seed
@@ -108,7 +110,7 @@ func ServiceForMultiDcSeed(multiDcServiceName, seed string, cluster *scyllav1.Sc
 		},
 	}
 
-	return service, nil
+	return service
 }
 
 func memberServicePorts(cluster *scyllav1.ScyllaCluster) []corev1.ServicePort {
